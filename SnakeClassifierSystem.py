@@ -2,22 +2,21 @@
 Created on Mon Apr  1 10:35:57 2024
 @author: Joshua Carter
 """
-# do we need this shit
 from PIL import Image
 from IPython.display import display
 
 
 import os  # accessing image from file manager
 import math
-import time  # performance
+import time  # performance analysis
 import typing  # readability
 
 import pywt  # filtering input image
 import torch  # classification
 
 import cv2  # create input image into an object
-import numpy as np  # do things with arrays :)
-import pandas as pd  # idk
+import numpy as np  # manipulation with dataframes
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from collections import Counter
