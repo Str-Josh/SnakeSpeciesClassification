@@ -2,21 +2,22 @@
 Created on Mon Apr  1 10:35:57 2024
 @author: Joshua Carter
 """
+# do we need this shit
 from PIL import Image
 from IPython.display import display
 
 
 import os  # accessing image from file manager
 import math
-import time  # performance analysis
+import time  # performance
 import typing  # readability
 
 import pywt  # filtering input image
 import torch  # classification
 
 import cv2  # create input image into an object
-import numpy as np  # manipulation with dataframes
-import pandas as pd
+import numpy as np  # do things with arrays :)
+import pandas as pd  # idk
 import matplotlib.pyplot as plt
 
 from collections import Counter
@@ -149,6 +150,7 @@ class Data(object):
         snake_attributes  = self.attributes
         training_data     = self.training_data
         NAME_COLUMN       = self.class_name_column
+        alpha = 1
         
         for column_name in snake_attributes:
             # get array of unique values in pd.Series of each snake attribute
@@ -157,7 +159,6 @@ class Data(object):
             
             # iterate thru unique values to create list of all types
             for unique in unique_responses:
-                
                 features.append(f"{column_name}_{unique}")
                 bayes_table_rows.append(f"P({column_name}_{unique}|m)")
 
@@ -166,8 +167,7 @@ class Data(object):
         classes = np.unique(np.array(training_data[NAME_COLUMN].tolist()))        
 
         
-        # get values for P(m)!
-        #z = training_data.groupby("Name").count()["TriangularHead"] / len(training_data) 
+        # get values for priors / P(m)!
         class_probabilities = training_data.groupby(NAME_COLUMN).count()["HeadShape"] / len(training_data)
         for j in class_probabilities:
             probabilities_tables_grouped_attribute.append(j)
@@ -176,20 +176,30 @@ class Data(object):
         # create empty 2d array to store the probabilities for our bayes table
         empty_data = np.zeros([ len(bayes_table_rows), len(classes) ])
         empty_data[0] = probabilities_tables_grouped_attribute
-        #######################################################################
         
         result_dict = {}
         for snake_class_name, group_data in training_data.groupby(NAME_COLUMN):
             class_data = {}
+            #print(group_data)
             
             for attribute in snake_attributes:
                 class_data[attribute] = group_data[attribute].tolist()
                 #y = group_data[attribute]
                 value_counts = Counter(group_data[attribute])
-                probs = [
-                    value_counts[response_category] /len(group_data[attribute])
-                    for response_category in structured_data[attribute]]
-                
+
+                # get our conditional probabilities
+                probs = [(value_counts[response_category] + alpha) / (
+                    (alpha*len(structured_data[attribute])) + 
+                         len(group_data[attribute])) 
+                         for response_category in structured_data[attribute]]
+                #print(probs)
+                """
+                probs = [(value_counts[response_category] + alpha) / (
+                    (alpha) + 
+                         len(group_data[attribute])) 
+                         for response_category in structured_data[attribute]]
+                #print(probs)
+                """
                 for _counter, j in enumerate(structured_data[attribute]):
                     col_index = classes.tolist().index(snake_class_name)
                     row_index = bayes_table_rows.index(f"P({attribute}_{j}|m)")
@@ -200,14 +210,57 @@ class Data(object):
         self.bayes_table = pd.DataFrame( empty_data, 
                                         index = bayes_table_rows,
                                         columns = classes)
-        
-        print(self.bayes_table)
+
+        #  print(self.bayes_table)
         return self.bayes_table
     
 
 class Classifier(object):
-    def __init__(self):
+    def __init__(self, X: list,
+                 naive_bayes_conditional_probabilities_table:pd.DataFrame):
+        # x is our list of attributes from our given input
+        self.X = X
+        self.table = naive_bayes_conditional_probabilities_table
+        self.setup()
         return None
+    
+    def setup(self):
+        probabilities = []
+        table = self.table
+        X = self.X
+        prob = 1
+        #prob = []
+        for class_category in table:  # range(0, len(table)):
+            for given_feature in range(0, len(X)):
+                #print(table)
+                #print(table["Copperhead"].loc["P(ScaleTexture_unknown|m)"])
+                
+                #print(table.index[0])
+                #g=f"P({X[given_feature]}|m)"
+                #print(type(g))
+                
+                #print(table[class_category].loc[f"P({X[given_feature]}|m)"])
+                #prob.append(table[class_category].loc[f"P({X[given_feature]}|m)"])
+                prob *= float(table[class_category].loc[f"P({X[given_feature]}|m)"])
+                # X[given_feature][class_category]]
+                #print(prob)
+            probabilities.append( (class_category, prob) )
+            
+        #print(prob)
+        print(probabilities)
+        #print(len(training_data.columns))
+        #print(len(probabilities))
+        s = []
+        for j in probabilities:
+            s.append( np.prod(j[1]) )
+        #print(s)
+        return None
+    
+    
+    def laplace_smoothing(self):
+        # needed because of some probabilities = 0
+        return None
+    
 
 
 def algo_run_timer(function):
@@ -219,7 +272,9 @@ def algo_run_timer(function):
 
 if __name__ == "__main__":
     program_timer = time.time()
+    
     current_directory = os.getcwd()
+    
     image_path = current_directory + "\\southernCopperhead.jpg"
     dataset_path = current_directory + "\\dataset\\snakeData.xlsx"
 
@@ -227,10 +282,25 @@ if __name__ == "__main__":
     cam.upload_image(image_path)
     # cam.display_image_PIL()
     # cam.preprocess_image()
+    
     #attributes = ["TriangularHead", "SlitPupils", "ThickBodies", "PitBehindNose", "BodyBottomColor"]
-    attributes = ["BodyShape", "HeadShape", "Color", "BackPattern", "ScaleTexture", "EyePupilShape"]
+    attributes = ["BodyShape", "HeadShape", "Color", 
+                  "BackPattern", "ScaleTexture", "EyePupilShape"]
     class_names_column = "Name"
+    
     data = Data(dataset_path, attributes, class_names_column)
-    #BodyShape	HeadShape	Color	BackPattern	ScaleTexture	EyePupilShape
-    algo_run_timer(data.create_bayes_table)
+    naive_bayes_table = data.create_bayes_table()
+    
+    example_input0 = ["BodyShape_slender",
+                     "ScaleTexture_smooth",
+                     "Color_tan",
+                     "BackPattern_striped"]  # hope to classify as Coral Snake
+    example_input = ["ScaleTexture_keeled",
+                     "EyePupilShape_unknown",
+                     "Color_red_black_yellow"]
+    classifier = Classifier(example_input, 
+                            naive_bayes_table)
+    
+    
+    #algo_run_timer(data.create_bayes_table)
     print(f"Time to completion: {time.time() - program_timer}")
