@@ -21,6 +21,7 @@ import pandas as pd  # idk
 import matplotlib.pyplot as plt
 
 from collections import Counter
+from openpyxl import Workbook
 
 
 class Camera(object):
@@ -117,7 +118,7 @@ class Data(object):
         #self.training_data = pd.read_excel(dataset_path, sheet_name="TrainingData")
         #self.example_training_data = pd.read_excel(dataset_path, sheet_name="ExampleTrainingData(OLD)")
         self.training_data = pd.read_excel(
-            dataset_path, sheet_name="ExampleTrainingData")
+            dataset_path, sheet_name="TrainingData")
         self.attributes = attributes_for_classification
         self.class_name_column = column_for_class_names
         """
@@ -211,7 +212,10 @@ class Data(object):
                                         index = bayes_table_rows,
                                         columns = classes)
 
-        #  print(self.bayes_table)
+        #print(self.bayes_table)
+        i_want_to = False
+        if i_want_to:
+            self.bayes_table.to_excel("BayesTable1.xlsx", sheet_name='Bayes Table', index=True)
         return self.bayes_table
     
 
@@ -224,43 +228,44 @@ class Classifier(object):
         self.setup()
         return None
     
+    
     def setup(self):
-        probabilities = []
         table = self.table
         X = self.X
+        probabilities = {}
+        
+        # calculate probabilities P(X|Physics), P(X|Biology), ...
         prob = 1
-        #prob = []
-        for class_category in table:  # range(0, len(table)):
-            for given_feature in range(0, len(X)):
-                #print(table)
-                #print(table["Copperhead"].loc["P(ScaleTexture_unknown|m)"])
-                
-                #print(table.index[0])
-                #g=f"P({X[given_feature]}|m)"
-                #print(type(g))
-                
-                #print(table[class_category].loc[f"P({X[given_feature]}|m)"])
-                #prob.append(table[class_category].loc[f"P({X[given_feature]}|m)"])
-                prob *= float(table[class_category].loc[f"P({X[given_feature]}|m)"])
-                # X[given_feature][class_category]]
-                #print(prob)
-            probabilities.append( (class_category, prob) )
-            
-        #print(prob)
-        print(probabilities)
-        #print(len(training_data.columns))
-        #print(len(probabilities))
-        s = []
-        for j in probabilities:
-            s.append( np.prod(j[1]) )
-        #print(s)
-        return None
-    
-    
-    def laplace_smoothing(self):
-        # needed because of some probabilities = 0
-        return None
-    
+        for class_category in table:
+            for given_feature in X:
+                prob *= table[class_category].loc[f"P({given_feature}|m)"]
+            probabilities[class_category] = prob
+            prob = 1
+        
+        posteriors  = {}
+        denominator = 0
+        posterior_sum = 0
+        x={}
+        
+        # calculate posteriors
+        for class_name, conditional in probabilities.items():
+            class_probability = table[class_name].loc["P(m)"]
+            conditional = probabilities[class_name]
+            term = conditional * class_probability
+            denominator += term
+        
+        for class_name in table:
+            x[class_name]=probabilities[class_name]*table[class_name].loc["P(m)"]/denominator
+            posterior_sum += x[class_name]
+        #posterior_sum = sum(x)
+        if posterior_sum < 0.999 or posterior_sum > 1.111:
+            print("There was an error in the Posterior probability calculations")
+        else:
+            posteriors = pd.Series(data= x, index= [c for c in table])
+            argmax_n_class = posteriors.idxmax()
+            argmax_n = posteriors.loc[argmax_n_class]
+            print(f"The given input features describe a {argmax_n_class} species of snake with probability of {round(argmax_n, 8)}")
+        return (argmax_n_class, argmax_n), posteriors
 
 
 def algo_run_timer(function):
@@ -298,9 +303,8 @@ if __name__ == "__main__":
     example_input = ["ScaleTexture_keeled",
                      "EyePupilShape_unknown",
                      "Color_red_black_yellow"]
-    classifier = Classifier(example_input, 
+    a = ["BodyShape_stout", "HeadShape_triangular"]
+    classifier = Classifier(example_input0, 
                             naive_bayes_table)
     
-    
-    #algo_run_timer(data.create_bayes_table)
     print(f"Time to completion: {time.time() - program_timer}")
