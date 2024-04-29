@@ -17,7 +17,7 @@ import torch  # classification
 
 import cv2  # create input image into an object
 import numpy as np  # do things with arrays :)
-import pandas as pd  # idk
+import pandas as pd 
 import matplotlib.pyplot as plt
 
 from collections import Counter
@@ -32,23 +32,6 @@ class Camera(object):
     
     
     def upload_image(self, image_path: str):
-        """
-
-        Parameters
-        ----------
-        image_path : str
-            File Path for a snake image.
-
-        Raises
-        ------
-        FileNotFoundError
-            The file path for the snake image could not be found.
-
-        Returns
-        -------
-        None.
-
-        """
         
         if os.path.exists(image_path):
             self.image = cv2.imread(image_path)
@@ -71,7 +54,7 @@ class Camera(object):
     
     
     def display_image_PIL(self):
-        # because my IDE is dumb and won't disp img with cv2 so i use pil
+        # because my Spyder won't disp img with cv2 so I'm using pillow
         # PILcolor_coverted = cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB)
         correct_img = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(correct_img)
@@ -87,11 +70,19 @@ class Camera(object):
     
     
     def preprocess_image(self):
-        self.new_image = math.sin(self.image + 70)
-        print(self.image[1][1:5])
-        print(self.new_image[1][1:5])
-        self.show_image(self.new_image)
+        #self.new_image = math.sin(self.image + 70)
+        #print(self.image[1][1:5])
+        #print(self.new_image[1][1:5])
+        #self.show_image(self.new_image)
+        image = self.image
         """DWT and image enhancement stuff"""
+        
+        feature_matrix = np.zeros((image.shape[0], image.shape[1]))
+        for i in range(0, image.shape[0]):
+            for j in range(0,image.shape[1]):
+                feature_matrix[i][j] = (
+                    (int(image[i,j,0])+int(image[i,j,1])+int(image[i,j,2])) /3)
+        print(feature_matrix)
         return None
     
     
@@ -221,10 +212,12 @@ class Data(object):
 
 class Classifier(object):
     def __init__(self, X: list,
-                 naive_bayes_conditional_probabilities_table:pd.DataFrame):
+                 naive_bayes_conditional_probabilities_table:pd.DataFrame,
+                 classifications_data_file:pd.DataFrame):
         # x is our list of attributes from our given input
         self.X = X
         self.table = naive_bayes_conditional_probabilities_table
+        self.classifications_data_file = classifications_data_file
         self.setup()
         return None
     
@@ -257,14 +250,22 @@ class Classifier(object):
         for class_name in table:
             x[class_name]=probabilities[class_name]*table[class_name].loc["P(m)"]/denominator
             posterior_sum += x[class_name]
-        #posterior_sum = sum(x)
+        
         if posterior_sum < 0.999 or posterior_sum > 1.111:
             print("There was an error in the Posterior probability calculations")
         else:
             posteriors = pd.Series(data= x, index= [c for c in table])
             argmax_n_class = posteriors.idxmax()
             argmax_n = posteriors.loc[argmax_n_class]
-            print(f"The given input features describe a {argmax_n_class} species of snake with probability of {round(argmax_n, 8)}")
+            classif_df = self.classifications_data_file
+            classif_filtered_df = classif_df[
+                classif_df["species"] == argmax_n_class]
+            poisonous_classif = classif_filtered_df["poisonous"].values[0]
+            poi_cat = "POISONOUS!" if poisonous_classif==1 else "NON poisonous"
+            print(poi_cat)
+            print(f"The given input features describe a {poi_cat} " +
+                  f"{argmax_n_class} species of snake with " +
+                  f"probability of {round(argmax_n, 8)}")
         return (argmax_n_class, argmax_n), posteriors
 
 
@@ -280,11 +281,11 @@ if __name__ == "__main__":
     
     current_directory = os.getcwd()
     
-    image_path = current_directory + "\\southernCopperhead.jpg"
+    # image_path = current_directory + "\\southernCopperhead.jpg"
     dataset_path = current_directory + "\\dataset\\snakeData.xlsx"
 
-    cam = Camera()
-    cam.upload_image(image_path)
+    # cam = Camera()
+    # cam.upload_image(image_path)
     # cam.display_image_PIL()
     # cam.preprocess_image()
     
@@ -304,7 +305,9 @@ if __name__ == "__main__":
                      "EyePupilShape_unknown",
                      "Color_red_black_yellow"]
     a = ["BodyShape_stout", "HeadShape_triangular"]
-    classifier = Classifier(example_input0, 
-                            naive_bayes_table)
+    ex = ["BodyShape_slender", "HeadShape_triangular",
+          "ScaleTexture_keeled"]
+    classifier = Classifier(ex, naive_bayes_table, data.classifications)
     
+
     print(f"Time to completion: {time.time() - program_timer}")
