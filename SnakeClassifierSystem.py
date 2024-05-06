@@ -2,7 +2,6 @@
 Created on Mon Apr  1 10:35:57 2024
 @author: Joshua Carter
 """
-# do we need this shit
 from PIL import Image
 from IPython.display import display
 
@@ -15,13 +14,17 @@ import typing  # readability
 import pywt  # filtering input image
 import torch  # classification
 
-import cv2  # create input image into an object
-import numpy as np  # do things with arrays :)
-import pandas as pd 
+import cv2
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from collections import Counter
 from openpyxl import Workbook
+
+from sklearn.model_selection import StratifiedKFold
+from sklearn.naive_bayes import GaussianNB, CategoricalNB, MultinomialNB
+from sklearn.preprocessing import LabelEncoder
 
 
 class Camera(object):
@@ -29,6 +32,7 @@ class Camera(object):
         # could be scaled to allow this to start a camera process and 
         # take an image for an application
         return None
+    
     
     
     def upload_image(self, image_path: str):
@@ -128,6 +132,75 @@ class Data(object):
     def clean_data(self):
         # retrieve the data from the excel file
         # since we got shitty data, we wanna clean it
+        return None
+    
+    
+    def cross_validate(self, num_folds=10):
+        
+        """
+        data = self.training_data  # Your data with features and target variable
+        target = data["Name"]
+        
+        clf = CategoricalNB()
+        cv = StratifiedKFold(n_splits = num_folds, 
+                             shuffle = True, 
+                             random_state = 42)
+        
+        label_encoder = LabelEncoder()
+        label_encoder.fit(data["Name"])
+        encoded_resp_var = label_encoder.transform(data["Name"])
+        
+        label_encoder.fit(data["BodyShape"])
+        encoded_ind_var1 = label_encoder.transform(data["BodyShape"])
+        label_encoder.fit(data["HeadShape"])
+        encoded_ind_var2 = label_encoder.transform(data["HeadShape"])
+        label_encoder.fit(data["Color"])
+        encoded_ind_var3 = label_encoder.transform(data["Color"])
+        label_encoder.fit(data["BackPattern"])
+        encoded_ind_var4 = label_encoder.transform(data["BackPattern"])
+        label_encoder.fit(data["ScaleTexture"])
+        encoded_ind_var5 = label_encoder.transform(data["ScaleTexture"])
+        label_encoder.fit(data["EyePupilShape"])
+        encoded_ind_var6 = label_encoder.transform(data["EyePupilShape"])
+        
+        print(encoded_ind_var1, encoded_ind_var2,
+              encoded_ind_var3, encoded_ind_var4,
+              encoded_ind_var5, encoded_ind_var6, sep="\n")
+        
+        
+        data_copy = data.copy()
+        data_copy["Name"]          = encoded_resp_var
+        data_copy["BodyShape"]     = encoded_ind_var1
+        data_copy["HeadShape"]     = encoded_ind_var2
+        data_copy["Color"]         = encoded_ind_var3
+        data_copy["BackPattern"]   = encoded_ind_var4
+        data_copy["ScaleTexture"]  = encoded_ind_var5
+        data_copy["EyePupilShape"] = encoded_ind_var6
+        
+        # Perform cross-validation
+        scores = []
+        
+        for train_index, test_index in cv.split(data_copy, target):
+            X_train, X_test = data_copy.iloc[train_index], data_copy.iloc[test_index]
+            y_train, y_test = target.iloc[train_index], target.iloc[test_index]
+            clf.fit(X_train, y_train)
+            score = clf.score(X_test, y_test)
+            scores.append(score)
+        
+        # Print average accuracy across folds
+        print(f"Average Accuracy: {sum(scores) / len(scores)}")
+        """
+        """
+        x = data_copy[2:3]
+        x["BodyShape"] = 2
+        x["HeadShape"] = 3
+        x["Color"] = 4
+        x["BackPattern"] = 1
+        x["ScaleTexture"] = 0
+        x["EyePupilShape"] = 0
+        print(clf.predict(x))
+        """
+        #print(clf.get_params())
         return None
     
     
@@ -257,15 +330,23 @@ class Classifier(object):
             posteriors = pd.Series(data= x, index= [c for c in table])
             argmax_n_class = posteriors.idxmax()
             argmax_n = posteriors.loc[argmax_n_class]
+            
+            
             classif_df = self.classifications_data_file
             classif_filtered_df = classif_df[
                 classif_df["species"] == argmax_n_class]
+            
+            
             poisonous_classif = classif_filtered_df["poisonous"].values[0]
+            
             poi_cat = "POISONOUS!" if poisonous_classif==1 else "NON poisonous"
+            
             print(poi_cat)
             print(f"The given input features describe a {poi_cat} " +
                   f"{argmax_n_class} species of snake with " +
                   f"probability of {round(argmax_n, 8)}")
+            print(posteriors)
+            
         return (argmax_n_class, argmax_n), posteriors
 
 
@@ -307,7 +388,17 @@ if __name__ == "__main__":
     a = ["BodyShape_stout", "HeadShape_triangular"]
     ex = ["BodyShape_slender", "HeadShape_triangular",
           "ScaleTexture_keeled"]
-    classifier = Classifier(ex, naive_bayes_table, data.classifications)
+    #classifier = Classifier(ex, naive_bayes_table, data.classifications)
+    """
+    classifier = Classifier(["BodyShape_slender", "HeadShape_triangular",
+                             "ScaleTexture_keeled"], 
+                            naive_bayes_table, data.classifications)
     
-
+    """
+    classifier = Classifier(["BodyShape_typical","HeadShape_pointed",
+                             "Color_tan"], 
+                            naive_bayes_table, data.classifications)
+    #data.cross_validate()
+    
+    cam = Camera()
     print(f"Time to completion: {time.time() - program_timer}")
