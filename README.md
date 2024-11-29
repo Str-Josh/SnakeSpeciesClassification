@@ -1,6 +1,5 @@
 ## About the project
 The objective of this project is to use Categorical Naive Bayes Classification Algorithm to determine the species & venomous status of a particular snake given various attributes.
-The dataset that was used was a combination of data collected from [...]() and [...]().
 The dataset provides classifying features for the following snake species (along with their venomous statuses):
   - Coral Snake
   - Copperhead
