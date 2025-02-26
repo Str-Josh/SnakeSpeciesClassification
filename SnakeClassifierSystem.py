@@ -2,14 +2,10 @@
 Created on Mon Apr  1 10:35:57 2024
 @author: Joshua Carter
 """
-from PIL import Image
-from IPython.display import display
-
-
-import os  # accessing image from file manager
+import os
 import math
-import time  # performance
-import typing  # readability
+import time
+import typing
 
 import numpy as np
 import pandas as pd
